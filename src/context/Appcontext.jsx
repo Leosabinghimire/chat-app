@@ -1,8 +1,6 @@
 import { createContext, useEffect, useState } from "react";
 import { auth, db } from "../config/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore/lite";
-import { onSnapshot } from "firebase/firestore";
-
+import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
 export const AppContext = createContext();
@@ -22,24 +20,25 @@ const AppContextProvider = (props) => {
         setUserData(userData);
 
         if (isNewAccount) {
-          navigate("/profile"); // Navigate to profile if it's a new account
+          navigate("/profile");
+        } else if (!userData.avatar || !userData.name) {
+          navigate("/profile");
         } else {
-          if (userData.avatar && userData.name) {
-            navigate("/chat");
-          } else {
-            navigate("/profile");
-          }
+          navigate("/chat");
         }
 
         await updateDoc(userRef, { lastSeen: Date.now() });
 
-        setInterval(async () => {
+        const intervalId = setInterval(async () => {
           if (auth.currentUser) {
             await updateDoc(userRef, { lastSeen: Date.now() });
           }
         }, 60000);
+
+        // Clear the interval when the component unmounts
+        return () => clearInterval(intervalId);
       } else {
-        // Handle case where no user data is found
+        navigate("/create-account");
       }
     } catch (error) {
       console.error("Error loading user data:", error);
@@ -64,7 +63,7 @@ const AppContextProvider = (props) => {
         unSub();
       };
     }
-  });
+  }, [userData]);
 
   const value = {
     userData,

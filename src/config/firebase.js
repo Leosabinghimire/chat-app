@@ -5,9 +5,10 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { getFirestore, setDoc, doc } from "firebase/firestore/lite";
+import { getFirestore, setDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
 
+// Your Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyDYAYIlD6i1L4B8ciWeYqaJMHWtVcuySzw",
   authDomain: "chat-app-d9896.firebaseapp.com",
@@ -23,6 +24,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Format Firebase error codes into user-friendly messages
 const formatErrorCode = (code) => {
   switch (code) {
     case "auth/email-already-in-use":
@@ -42,6 +44,7 @@ const formatErrorCode = (code) => {
   }
 };
 
+// Signup function
 const signup = async (username, email, password) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(
@@ -49,9 +52,9 @@ const signup = async (username, email, password) => {
       email,
       password
     );
-
     const user = userCredential.user;
 
+    // Create user document in Firestore
     await setDoc(doc(db, "users", user.uid), {
       id: user.uid,
       username: username.toLowerCase(),
@@ -62,6 +65,7 @@ const signup = async (username, email, password) => {
       lastSeen: Date.now(),
     });
 
+    // Create an empty chat document for the user
     await setDoc(doc(db, "chats", user.uid), {
       chatData: [],
     });
@@ -73,10 +77,10 @@ const signup = async (username, email, password) => {
   }
 };
 
+// Login function
 const login = async (email, password) => {
   try {
     await signInWithEmailAndPassword(auth, email, password);
-
     toast.success("Login successful!");
   } catch (error) {
     console.error(error);
@@ -84,6 +88,7 @@ const login = async (email, password) => {
   }
 };
 
+// Logout function
 const logout = async () => {
   try {
     await signOut(auth);

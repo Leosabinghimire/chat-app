@@ -2,11 +2,11 @@ import React, { useContext, useEffect, useState } from "react";
 import "./Profile.css";
 import assets from "../../assets/assets";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore/lite";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import upload from "../../lib/upload"; // Adjust the import based on your export method
+import upload from "../../lib/upload";
 import { AppContext } from "../../context/Appcontext";
 
 const Profile = () => {
@@ -29,66 +29,71 @@ const Profile = () => {
       if (uid) {
         const docRef = doc(db, "users", uid);
 
+        let updateData = {
+          bio: bio,
+          name: name,
+        };
+
         if (image) {
           try {
-            const imgUrl = await upload(image); // Ensure 'image' is valid and upload function is async
+            const imgUrl = await upload(image);
             setPrevImage(imgUrl);
-            await updateDoc(docRef, {
-              avatar: imgUrl,
-              bio: bio,
-              name: name,
-            });
+            updateData.avatar = imgUrl;
           } catch (error) {
             console.error("Error uploading image:", error);
+            toast.error("Error uploading image");
+            return;
           }
-        } else {
-          await updateDoc(docRef, {
-            bio: bio,
-            name: name,
-          });
         }
+
+        await updateDoc(docRef, updateData);
 
         // Fetch updated data after updating the profile
         const snap = await getDoc(docRef);
         setUserData(snap.data());
+        toast.success("Profile updated successfully");
         navigate("/chat");
       }
     } catch (error) {
       console.error("Error updating profile:", error);
+      toast.error("Error updating profile");
     }
   };
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          try {
-            setUid(user.uid);
-            const docRef = doc(db, "users", user.uid);
-            const userSnap = await getDoc(docRef);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          setUid(user.uid);
+          const docRef = doc(db, "users", user.uid);
+          const userSnap = await getDoc(docRef);
 
-            if (userSnap.exists()) {
-              const userData = userSnap.data();
-              setName(userData.name || "");
-              setBio(userData.bio || "");
-              setPrevImage(userData.avatar || "");
-            } else {
-              console.log("No such document!");
-            }
-          } catch (error) {
-            console.error("Error fetching user data:", error);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            setName(userData.name || "");
+            setBio(userData.bio || "");
+            setPrevImage(userData.avatar || "");
+          } else {
+            console.log("No such document!");
+            toast.error("User data not found");
           }
-        } else {
-          navigate("/");
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          toast.error("Error fetching user data");
         }
-      });
-    };
+      } else {
+        navigate("/");
+      }
+    });
 
-    fetchUserData();
+    return () => unsubscribe();
   }, [navigate]);
 
   const handleImageChange = (e) => {
-    setImage(e.target.files[0]);
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+    }
   };
 
   const handleNameChange = (e) => {
